@@ -45,7 +45,7 @@ resource "aws_subnet" "private" {
 resource "aws_eks_cluster" "cluster" {
   name     = "chatbot-cluster"
   role_arn = aws_iam_role.eks_cluster.arn
-  version  = "1.27"
+  version  = "1.28"
 
   vpc_config {
     subnet_ids = concat(aws_subnet.public[*].id, aws_subnet.private[*].id)
@@ -69,14 +69,65 @@ resource "aws_eks_node_group" "nodes" {
     min_size     = 1
   }
 
-  instance_types = ["t3.medium"]
+  # Add disk configuration
+
+  # Node configuration
+  instance_types = ["t3.small"]
+  disk_size = 20
+
+  # Remote access
+  remote_access {
+    ec2_ssh_key = aws_key_pair.eks_nodes.key_name
+    source_security_group_ids = [aws_security_group.node_group_ssh.id]
+  }
+
+  # Add labels
+  labels = {
+    "role" = "worker"
+    "type" = "chatbot"
+  }
 
   depends_on = [
     aws_iam_role_policy_attachment.eks_worker_node_policy,
     aws_iam_role_policy_attachment.eks_cni_policy,
-    aws_iam_role_policy_attachment.eks_container_registry,
+    aws_iam_role_policy_attachment.eks_container_registry
   ]
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
+
+# Create SSH key pair for node access
+resource "aws_key_pair" "eks_nodes" {
+  key_name   = "eks-nodes-key"
+  public_key = file("${path.module}/ssh/eks-nodes.pub")
+}
+
+# Security group for SSH access
+resource "aws_security_group" "node_group_ssh" {
+  name_prefix = "eks-node-ssh"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]  # 
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "eks-node-ssh"
+  }
+}
+
 
 # ECR Repositories
 resource "aws_ecr_repository" "backend" {
