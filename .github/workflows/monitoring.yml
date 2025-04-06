@@ -1,0 +1,56 @@
+name: Monitoring and Alerts
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'  # Run every 15 minutes
+  workflow_dispatch:  # Allow manual triggering
+
+env:
+  AWS_REGION: us-east-1
+  EKS_CLUSTER_NAME: chatbot-cluster
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Update kube config
+      run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+
+    - name: Check pod health
+      run: |
+        # Check pod status
+        UNHEALTHY_PODS=$(kubectl get pods --all-namespaces | grep -v "Running\|Completed" || true)
+        if [ ! -z "$UNHEALTHY_PODS" ]; then
+          echo "Unhealthy pods found:"
+          echo "$UNHEALTHY_PODS"
+          exit 1
+        fi
+
+    - name: Check metrics
+      run: |
+        # Get metrics from Prometheus
+        ENDPOINT=$(kubectl get svc prometheus-service -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+        HIGH_ERROR_RATE=$(curl -s "http://$ENDPOINT:9090/api/v1/query" \
+          --data-urlencode 'query=rate(chatbot_errors_total[5m]) > 0.1' | \
+          jq -r '.data.result | length')
+        
+        if [ "$HIGH_ERROR_RATE" -gt 0 ]; then
+          echo "High error rate detected!"
+          exit 1
+        fi
+
+    - name: Send alert on failure
+      if: failure()
+      uses: slackapi/slack-github-action@v1.24.0
+      with:
+        channel-id: 'monitoring-alerts'
+        slack-message: "Alert: Health check failed in ${{ env.EKS_CLUSTER_NAME }} cluster!"
+      env:
+        SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}

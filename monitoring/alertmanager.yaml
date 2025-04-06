@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: monitoring
+data:
+  alertmanager.yml: |
+    route:
+      receiver: "slack-notifications"
+    receivers:
+      - name: "slack-notifications"
+        slack_configs:
+        - channel: "#alerts"
+          api_url: "https://hooks.slack.com/services/YOUR_SLACK_WEBHOOK"

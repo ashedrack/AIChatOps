@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: monitoring
+data:
+  chatbot-performance.json: |
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": "-- Grafana --",
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
+      "editable": true,
+      "gnetId": null,
+      "graphTooltip": 0,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "title": "Request Rate",
+          "type": "graph",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "rate(business_request_count[1m])",
+              "legendFormat": "Requests per Second"
+            }
+          ]
+        },
+        {
+          "title": "Error Rate",
+          "type": "graph",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "rate(business_error_count[1m])",
+              "legendFormat": "Errors per Second"
+            }
+          ]
+        },
+        {
+          "title": "Response Time",
+          "type": "graph",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "rate(business_response_duration_sum[1m]) / rate(business_response_duration_count[1m])",
+              "legendFormat": "Average Response Time"
+            }
+          ]
+        },
+        {
+          "title": "Success Rate",
+          "type": "graph",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "business_token_rate",
+              "legendFormat": "Success Rate"
+            }
+          ]
+        }
+      ],
+      "refresh": "5s",
+      "schemaVersion": 26,
+      "style": "dark",
+      "tags": ["chatbot", "load-test"],
+      "title": "Chatbot API Performance Dashboard",
+      "uid": "chatbot-performance",
+      "version": 1
+    }
