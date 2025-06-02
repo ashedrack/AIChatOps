@@ -1,50 +1,50 @@
-name: Chatbot CI/CD Pipeline
+# name: Chatbot CI/CD Pipeline
 
-on:
-  push:
-    branches:
-      - main
+# on:
+#   push:
+#     branches:
+#       - main
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v3
-    - name: Set up Python
-      uses: actions/setup-python@v3
-      with:
-        python-version: '3.9'
-    - name: Install Dependencies
-      run: |
-        pip install -r src/requirements.txt
-    - name: Run Tests
-      run: |
-        pytest tests/
+# jobs:
+#   build:
+#     runs-on: ubuntu-latest
+#     steps:
+#     - name: Checkout Repository
+#       uses: actions/checkout@v3
+#     - name: Set up Python
+#       uses: actions/setup-python@v3
+#       with:
+#         python-version: '3.9'
+#     - name: Install Dependencies
+#       run: |
+#         pip install -r src/requirements.txt
+#     - name: Run Tests
+#       run: |
+#         pytest tests/
 
-  docker-build:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v3
-    - name: Log in to Docker Hub
-      run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-    - name: Build and Push Docker Image
-      run: |
-        docker build -t chatbot-api:latest ./src
-        docker tag chatbot-api:latest your-dockerhub-username/chatbot-api:latest
-        docker push your-dockerhub-username/chatbot-api:latest
+#   docker-build:
+#     needs: build
+#     runs-on: ubuntu-latest
+#     steps:
+#     - name: Checkout Repository
+#       uses: actions/checkout@v3
+#     - name: Log in to Docker Hub
+#       run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+#     - name: Build and Push Docker Image
+#       run: |
+#         docker build -t chatbot-api:latest ./src
+#         docker tag chatbot-api:latest your-dockerhub-username/chatbot-api:latest
+#         docker push your-dockerhub-username/chatbot-api:latest
 
-  deploy:
-    needs: docker-build
-    runs-on: ubuntu-latest
-    steps:
-    - name: Set up Kubectl
-      uses: azure/setup-kubectl@v3
-      with:
-        version: 'latest'
-    - name: Apply Kubernetes Deployment
-      run: |
-        kubectl apply -f k8s/deployment.yaml
-        kubectl rollout restart deployment chatbot-deployment
+#   deploy:
+#     needs: docker-build
+#     runs-on: ubuntu-latest
+#     steps:
+#     - name: Set up Kubectl
+#       uses: azure/setup-kubectl@v3
+#       with:
+#         version: 'latest'
+#     - name: Apply Kubernetes Deployment
+#       run: |
+#         kubectl apply -f k8s/deployment.yaml
+#         kubectl rollout restart deployment chatbot-deployment
