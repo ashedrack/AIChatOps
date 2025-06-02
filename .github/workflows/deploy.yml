@@ -1,100 +1,100 @@
-name: Build and Deploy
+# name: Build and Deploy
 
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+# on:
+#   push:
+#     branches: [ main ]
+#   pull_request:
+#     branches: [ main ]
 
-env:
-  AWS_REGION: us-east-1
-  ECR_BACKEND_REPOSITORY: chatbot-backend
-  ECR_FRONTEND_REPOSITORY: chatbot-frontend
-  EKS_CLUSTER_NAME: chatbot-cluster
+# env:
+#   AWS_REGION: us-east-1
+#   ECR_BACKEND_REPOSITORY: chatbot-backend
+#   ECR_FRONTEND_REPOSITORY: chatbot-frontend
+#   EKS_CLUSTER_NAME: chatbot-cluster
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
+# jobs:
+#   test:
+#     runs-on: ubuntu-latest
+#     steps:
+#     - uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
+#     - name: Set up Python
+#       uses: actions/setup-python@v4
+#       with:
+#         python-version: '3.9'
 
-    - name: Install dependencies
-      run: |
-        cd src
-        pip install -r requirements.txt
-        pip install pytest pytest-cov
+#     - name: Install dependencies
+#       run: |
+#         cd src
+#         pip install -r requirements.txt
+#         pip install pytest pytest-cov
 
-    - name: Run tests
-      run: |
-        cd src
-        pytest --cov=./ --cov-report=xml
+#     - name: Run tests
+#       run: |
+#         cd src
+#         pytest --cov=./ --cov-report=xml
 
-    - name: Upload coverage reports
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./src/coverage.xml
+#     - name: Upload coverage reports
+#       uses: codecov/codecov-action@v3
+#       with:
+#         file: ./src/coverage.xml
 
-  build-and-push:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
+#   build-and-push:
+#     needs: test
+#     runs-on: ubuntu-latest
+#     steps:
+#     - uses: actions/checkout@v3
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
+#     - name: Configure AWS credentials
+#       uses: aws-actions/configure-aws-credentials@v2
+#       with:
+#         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#         aws-region: ${{ env.AWS_REGION }}
 
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
+#     - name: Login to Amazon ECR
+#       id: login-ecr
+#       uses: aws-actions/amazon-ecr-login@v1
 
-    - name: Build and push backend image
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        IMAGE_TAG: ${{ github.sha }}
-      run: |
-        cd src
-        docker build -t $ECR_REGISTRY/$ECR_BACKEND_REPOSITORY:$IMAGE_TAG .
-        docker push $ECR_REGISTRY/$ECR_BACKEND_REPOSITORY:$IMAGE_TAG
+#     - name: Build and push backend image
+#       env:
+#         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+#         IMAGE_TAG: ${{ github.sha }}
+#       run: |
+#         cd src
+#         docker build -t $ECR_REGISTRY/$ECR_BACKEND_REPOSITORY:$IMAGE_TAG .
+#         docker push $ECR_REGISTRY/$ECR_BACKEND_REPOSITORY:$IMAGE_TAG
 
-    - name: Build and push frontend image
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        IMAGE_TAG: ${{ github.sha }}
-      run: |
-        cd frontend
-        docker build -t $ECR_REGISTRY/$ECR_FRONTEND_REPOSITORY:$IMAGE_TAG .
-        docker push $ECR_REGISTRY/$ECR_FRONTEND_REPOSITORY:$IMAGE_TAG
+#     - name: Build and push frontend image
+#       env:
+#         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+#         IMAGE_TAG: ${{ github.sha }}
+#       run: |
+#         cd frontend
+#         docker build -t $ECR_REGISTRY/$ECR_FRONTEND_REPOSITORY:$IMAGE_TAG .
+#         docker push $ECR_REGISTRY/$ECR_FRONTEND_REPOSITORY:$IMAGE_TAG
 
-  deploy:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
+#   deploy:
+#     needs: build-and-push
+#     runs-on: ubuntu-latest
+#     steps:
+#     - uses: actions/checkout@v3
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
+#     - name: Configure AWS credentials
+#       uses: aws-actions/configure-aws-credentials@v2
+#       with:
+#         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#         aws-region: ${{ env.AWS_REGION }}
 
-    - name: Update kube config
-      run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+#     - name: Update kube config
+#       run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
 
-    - name: Deploy to EKS
-      run: |
-        # Update image tags in deployment files
-        sed -i "s|your-dockerhub-username/chatbot-api:latest|${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_BACKEND_REPOSITORY }}:${{ github.sha }}|g" k8s/deployment.yaml
-        sed -i "s|ai-chat-frontend:latest|${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_FRONTEND_REPOSITORY }}:${{ github.sha }}|g" k8s/frontend-deployment.yaml
+#     - name: Deploy to EKS
+#       run: |
+#         # Update image tags in deployment files
+#         sed -i "s|your-dockerhub-username/chatbot-api:latest|${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_BACKEND_REPOSITORY }}:${{ github.sha }}|g" k8s/deployment.yaml
+#         sed -i "s|ai-chat-frontend:latest|${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_FRONTEND_REPOSITORY }}:${{ github.sha }}|g" k8s/frontend-deployment.yaml
         
-        # Apply Kubernetes manifests
-        kubectl apply -f k8s/
+#         # Apply Kubernetes manifests
+#         kubectl apply -f k8s/
